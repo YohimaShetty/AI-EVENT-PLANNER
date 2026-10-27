@@ -1,0 +1,608 @@
+<title>Celebration Planner</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: sticky form column beside the plan on wide screens, stacked on phones. */
+:root {
+  --bg: #f5f4fa;
+  --surface: #ffffff;
+  --ink: #1b1a33;
+  --muted: #585774;
+  --line: #dedcee;
+  --soft: #ebeaf7;
+  --brand: #3b39b0;
+  --on-brand: #ffffff;
+  --gold: #f0a500;
+  --gold-ink: #5a3d00;
+  --notice-bg: #fff4d6;
+  --err: #b3261e;
+  --ok: #1d7a4d;
+  --focus: #b86e00;
+  --font-display: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Instrument Sans', 'Segoe UI', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121127; --surface: #1c1b38; --ink: #efeefc; --muted: #b3b2d2; --line: #36355e;
+    --soft: #27264d; --brand: #aeacff; --on-brand: #12113a; --gold: #ffc247; --gold-ink: #ffd98a;
+    --notice-bg: #3a2f10; --err: #ff9188; --ok: #6fdba3; --focus: #ffc247; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121127; --surface: #1c1b38; --ink: #efeefc; --muted: #b3b2d2; --line: #36355e;
+  --soft: #27264d; --brand: #aeacff; --on-brand: #12113a; --gold: #ffc247; --gold-ink: #ffd98a;
+  --notice-bg: #3a2f10; --err: #ff9188; --ok: #6fdba3; --focus: #ffc247; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body);
+  padding-block: 0 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.15; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: 1.5rem; font-weight: 700; }
+h3 { font-size: 1.1rem; font-weight: 700; }
+p { margin: 0; }
+.wrap { max-width: 1180px; margin-inline: auto; }
+.skip { position: absolute; left: -999px; top: 8px; background: var(--brand); color: var(--on-brand); padding: 8px 14px; border-radius: 6px; z-index: 20; }
+.skip:focus { left: 8px; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.top { padding-block: 40px 28px; display: grid; gap: 10px; max-width: 720px; }
+.kicker { font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.lede { color: var(--muted); font-size: 1.1rem; max-width: 56ch; }
+
+.layout { display: grid; gap: 28px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 940px) { .layout { grid-template-columns: 360px minmax(0, 1fr); } .form { position: sticky; top: 16px; } }
+
+.form, .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 22px; }
+.form { display: grid; gap: 18px; min-width: 0; }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 8px; }
+legend, label.lbl { font-weight: 600; font-size: 0.95rem; padding: 0; }
+.hint { color: var(--muted); font-size: 0.85rem; }
+.field { display: grid; gap: 6px; min-width: 0; }
+input[type=text], input[type=number], input[type=date], select, textarea {
+  width: 100%; font: inherit; color: var(--ink); background: var(--bg);
+  border: 1.5px solid var(--line); border-radius: 8px; padding: 10px 12px; min-height: 44px;
+}
+textarea { min-height: 76px; resize: vertical; }
+input[aria-invalid="true"] { border-color: var(--err); }
+.err { color: var(--err); font-size: 0.88rem; font-weight: 500; }
+.seg { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.seg input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.seg label {
+  display: grid; place-items: center; text-align: center; min-height: 48px; padding: 6px 4px; font-size: 0.9rem; font-weight: 600;
+  border: 1.5px solid var(--line); border-radius: 8px; cursor: pointer; background: var(--bg); line-height: 1.2;
+}
+.seg input:checked + label { background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
+.seg input:focus-visible + label { outline: 3px solid var(--focus); outline-offset: 2px; }
+.checks { display: grid; gap: 4px; }
+.check { display: flex; gap: 10px; align-items: flex-start; min-height: 40px; padding: 6px 0; cursor: pointer; font-size: 0.95rem; }
+.check input { width: 20px; height: 20px; margin: 2px 0 0; flex: none; accent-color: var(--brand); }
+.btn {
+  font: inherit; font-weight: 700; min-height: 46px; padding: 10px 18px; border-radius: 8px; cursor: pointer;
+  background: var(--brand); color: var(--on-brand); border: 2px solid var(--brand);
+}
+.btn.ghost { background: transparent; color: var(--brand); }
+.btn[disabled] { opacity: 0.55; cursor: not-allowed; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.plan { display: grid; gap: 22px; min-width: 0; outline: none; }
+.plan > section { min-width: 0; }
+.card { display: grid; gap: 16px; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 14px 18px; margin: 0; }
+.facts div { display: grid; gap: 2px; }
+.facts dt { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.facts dd { margin: 0; font-family: var(--font-display); font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.notice { background: var(--notice-bg); color: var(--gold-ink); border-radius: 8px; padding: 12px 16px; margin: 0; list-style: none; display: grid; gap: 6px; }
+.example { color: var(--muted); font-size: 0.92rem; }
+.jump { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.jump a { color: var(--brand); font-weight: 600; }
+progress { width: 100%; height: 10px; accent-color: var(--brand); }
+.pbar { display: grid; gap: 6px; }
+
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+caption { text-align: left; font-weight: 600; padding-bottom: 6px; color: var(--muted); font-size: 0.9rem; }
+th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+tbody th[scope="row"], tfoot th[scope="row"] { text-transform: none; letter-spacing: 0; font-size: 1rem; font-weight: 500; color: var(--ink); }
+tfoot th[scope="row"] { font-weight: 700; }
+td.num, th.num { text-align: right; white-space: nowrap; }
+tfoot td { font-weight: 700; border-bottom: 0; }
+.track { background: var(--soft); border-radius: 4px; height: 10px; min-width: 90px; }
+.fill { background: var(--brand); height: 100%; border-radius: 4px; transition: width 0.4s; }
+.fill.pri { background: var(--gold); }
+.tag { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 1px 8px; border-radius: 99px; background: var(--soft); color: var(--ink); margin-left: 6px; vertical-align: middle; }
+.tag.gold { background: var(--gold); color: #3a2700; }
+@media (max-width: 600px) { .bar-col { display: none; } }
+
+ol.steps, ul.plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.step { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: start; }
+.step input { width: 22px; height: 22px; margin: 2px 0 0; accent-color: var(--brand); }
+.step label { cursor: pointer; display: grid; gap: 2px; }
+.when { font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.step input:checked + label .what { text-decoration: line-through; color: var(--muted); }
+.vendors { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); list-style: none; margin: 0; padding: 0; }
+.vendor { border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.vendor ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 0.92rem; }
+.cap { font-variant-numeric: tabular-nums; font-weight: 600; }
+.ideas { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
+.ideas h3 { margin-bottom: 6px; }
+.ideas ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.ai-out { display: grid; gap: 10px; }
+.ai-item { border-left: 3px solid var(--gold); padding: 2px 0 2px 12px; }
+.ai-item p { color: var(--muted); font-size: 0.95rem; }
+.copybox { width: 100%; min-height: 160px; font: 0.85rem/1.4 ui-monospace, Menlo, Consolas, monospace; }
+footer { margin-top: 32px; color: var(--muted); font-size: 0.88rem; }
+@media (prefers-reduced-motion: reduce) { .fill { transition: none; } }
+</style>
+
+<a class="skip" href="#plan">Skip to your plan</a>
+<div class="wrap">
+  <header class="top">
+    <p class="kicker">Weddings, birthdays and community events</p>
+    <h1>Celebration Planner</h1>
+    <p class="lede">Tell us the basics. Get a rupee-exact budget split, a dated timeline, a vendor checklist with questions to ask, and ideas that fit your guests.</p>
+  </header>
+
+  <main class="layout">
+    <form id="form" class="form" novalidate aria-labelledby="form-h">
+      <h2 id="form-h">Your event</h2>
+
+      <fieldset>
+        <legend>Type of event</legend>
+        <div class="seg" id="typeSeg"></div>
+      </fieldset>
+
+      <div class="field">
+        <label class="lbl" for="name">Event name</label>
+        <input type="text" id="name" autocomplete="off" maxlength="80" aria-describedby="err-name">
+        <p class="err" id="err-name" hidden></p>
+      </div>
+
+      <div class="field">
+        <label class="lbl" for="date">Event date</label>
+        <input type="date" id="date" aria-describedby="err-date">
+        <p class="err" id="err-date" hidden></p>
+      </div>
+
+      <div class="field">
+        <label class="lbl" for="guests">Number of guests</label>
+        <input type="number" id="guests" inputmode="numeric" min="2" max="5000" step="1" aria-describedby="err-guests">
+        <p class="err" id="err-guests" hidden></p>
+      </div>
+
+      <div class="field">
+        <label class="lbl" for="budget">Total budget in rupees</label>
+        <input type="number" id="budget" inputmode="numeric" min="5000" step="1" aria-describedby="hint-budget err-budget">
+        <p class="hint" id="hint-budget">Enter the full amount you can spend, for example 1500000.</p>
+        <p class="err" id="err-budget" hidden></p>
+      </div>
+
+      <div class="field">
+        <label class="lbl" for="vibe">Style</label>
+        <select id="vibe"></select>
+      </div>
+
+      <fieldset>
+        <legend>Where should more money go?</legend>
+        <p class="hint" id="hint-pri">Choose up to 3.</p>
+        <div class="checks" id="priorities" aria-describedby="hint-pri"></div>
+      </fieldset>
+
+      <div class="field">
+        <label class="lbl" for="notes">Special requests (optional)</label>
+        <textarea id="notes" maxlength="400" aria-describedby="hint-notes"></textarea>
+        <p class="hint" id="hint-notes">For example: vegetarian menu, elders need seating, rain plan.</p>
+      </div>
+
+      <div class="row">
+        <button type="submit" class="btn" id="build">Build my plan</button>
+        <button type="button" class="btn ghost" id="reset">Reset</button>
+      </div>
+    </form>
+
+    <div class="plan" id="plan" tabindex="-1" aria-labelledby="plan-h">
+      <div class="sr" id="status" role="status" aria-live="polite"></div>
+      <div id="out"></div>
+    </div>
+  </main>
+  <footer>Amounts are planning estimates in Indian rupees. Confirm prices with each vendor in writing.</footer>
+</div>
+
+<script>
+/*PLANNER*/
+</script>
+<script>
+(function () {
+  'use strict';
+  var P = window.Planner;
+  document.documentElement.lang = 'en';
+
+  function $(id) { return document.getElementById(id); }
+  function h(tag, props) {
+    var e = document.createElement(tag);
+    var p = props || {};
+    Object.keys(p).forEach(function (k) {
+      var v = p[k];
+      if (v == null || v === false) return;
+      if (k === 'class') e.className = v;
+      else if (k === 'text') e.textContent = v;
+      else if (k.slice(0, 2) === 'on') e.addEventListener(k.slice(2), v);
+      else e.setAttribute(k, v === true ? '' : v);
+    });
+    for (var i = 2; i < arguments.length; i++) {
+      var kids = [].concat(arguments[i]);
+      kids.forEach(function (c) {
+        if (c == null || c === false) return;
+        e.append(c.nodeType ? c : document.createTextNode(String(c)));
+      });
+    }
+    return e;
+  }
+
+  var KEY = 'celebration-planner-v1';
+  var today = P.toISO(new Date());
+  var EXAMPLES = {
+    wedding: { name: "Asha and Kiran's wedding", guests: 250, budget: 1500000, offset: 300, priorities: ['catering', 'photo'] },
+    birthday: { name: "Aarav's 7th birthday", guests: 40, budget: 60000, offset: 100, priorities: ['entertainment'] },
+    community: { name: 'Lake Road neighbourhood fair', guests: 300, budget: 150000, offset: 90, priorities: ['catering', 'av'] }
+  };
+
+  var state = { values: null, done: {}, signature: '', example: true };
+  var lastPlan = null;
+  var dirty = {};
+
+  function load() {
+    try { var raw = localStorage.getItem(KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* storage may be unavailable */ }
+  }
+  function exampleValues(type) {
+    var ex = EXAMPLES[type];
+    return {
+      type: type, name: ex.name, date: P.toISO(P.addDays(P.parseDate(today), ex.offset)),
+      guests: ex.guests, budget: ex.budget, vibe: 'traditional', priorities: ex.priorities.slice(), notes: ''
+    };
+  }
+
+  // ---------- form ----------
+  function drawTypes(selected) {
+    var seg = $('typeSeg');
+    seg.textContent = '';
+    Object.keys(P.EVENT_TYPES).forEach(function (key) {
+      var id = 'type-' + key;
+      seg.append(
+        h('input', { type: 'radio', name: 'type', id: id, value: key, checked: key === selected }),
+        h('label', { for: id, text: P.EVENT_TYPES[key].label })
+      );
+    });
+  }
+  function drawVibes(selected) {
+    var sel = $('vibe');
+    sel.textContent = '';
+    Object.keys(P.VIBES).forEach(function (k) {
+      sel.append(h('option', { value: k, text: P.VIBES[k], selected: k === selected }));
+    });
+  }
+  function drawPriorities(type, selected) {
+    var box = $('priorities');
+    box.textContent = '';
+    P.EVENT_TYPES[type].categories.forEach(function (c) {
+      var id = 'pri-' + c.key;
+      box.append(h('label', { class: 'check', for: id },
+        h('input', { type: 'checkbox', id: id, value: c.key, checked: selected.indexOf(c.key) >= 0 }),
+        h('span', { text: c.label })));
+    });
+    limitPriorities();
+  }
+  function limitPriorities() {
+    var boxes = [].slice.call($('priorities').querySelectorAll('input'));
+    var n = boxes.filter(function (b) { return b.checked; }).length;
+    boxes.forEach(function (b) { b.disabled = !b.checked && n >= P.MAX_PRIORITIES; });
+    $('hint-pri').textContent = n >= P.MAX_PRIORITIES ? 'You chose 3. Untick one to change.' : 'Choose up to ' + P.MAX_PRIORITIES + '. ' + n + ' chosen.';
+  }
+  function fillForm(v) {
+    drawTypes(v.type);
+    drawVibes(v.vibe);
+    $('name').value = v.name;
+    $('date').value = v.date;
+    $('date').min = today;
+    $('guests').value = v.guests;
+    $('budget').value = v.budget;
+    $('notes').value = v.notes || '';
+    drawPriorities(v.type, v.priorities || []);
+  }
+  function readForm() {
+    var checked = document.querySelector('input[name="type"]:checked');
+    return {
+      type: checked ? checked.value : '',
+      name: $('name').value,
+      date: $('date').value,
+      guests: $('guests').value === '' ? NaN : Number($('guests').value),
+      budget: $('budget').value === '' ? NaN : Number($('budget').value),
+      vibe: $('vibe').value,
+      priorities: [].slice.call($('priorities').querySelectorAll('input:checked')).map(function (b) { return b.value; }),
+      notes: $('notes').value
+    };
+  }
+  function showErrors(errors) {
+    ['name', 'date', 'guests', 'budget'].forEach(function (f) {
+      var p = $('err-' + f);
+      var input = $(f);
+      if (errors && errors[f]) { p.textContent = errors[f]; p.hidden = false; input.setAttribute('aria-invalid', 'true'); }
+      else { p.textContent = ''; p.hidden = true; input.removeAttribute('aria-invalid'); }
+    });
+    if (errors) {
+      var first = ['name', 'date', 'guests', 'budget'].filter(function (f) { return errors[f]; })[0];
+      if (first) $(first).focus();
+      else if (errors.type) document.querySelector('input[name="type"]').focus();
+    }
+  }
+
+  // ---------- rendering ----------
+  function doneKey(plan, id) { return plan.input.type + ':' + id; }
+  function updateProgress() {
+    if (!lastPlan) return;
+    var ids = lastPlan.timeline.items.map(function (t) { return t.id; }).concat(lastPlan.vendors.map(function (v) { return v.id; }));
+    var n = ids.filter(function (id) { return state.done[doneKey(lastPlan, id)]; }).length;
+    var bar = $('prog');
+    if (!bar) return;
+    bar.max = ids.length; bar.value = n;
+    $('progText').textContent = n + ' of ' + ids.length + ' steps done';
+  }
+  function tick(plan, id) {
+    return function (e) {
+      state.done[doneKey(plan, id)] = e.target.checked;
+      save(); updateProgress();
+    };
+  }
+  function section(id, title, kids) {
+    return h('section', { class: 'card', id: id, 'aria-labelledby': id + '-h' }, h('h2', { id: id + '-h', text: title }), kids);
+  }
+
+  function render(plan) {
+    lastPlan = plan;
+    var i = plan.input, out = $('out');
+    out.textContent = '';
+    var wrap = h('div', { class: 'plan' });
+
+    // summary
+    var when = plan.daysToGo === 0 ? 'Today' : plan.daysToGo + (plan.daysToGo === 1 ? ' day to go' : ' days to go');
+    var summary = h('section', { class: 'card', 'aria-labelledby': 'plan-h' },
+      h('h2', { id: 'plan-h', text: i.name }),
+      state.example ? h('p', { class: 'example', text: 'This is an example plan. Change the details on the left and choose Build my plan.' }) : null,
+      h('dl', { class: 'facts' },
+        h('div', null, h('dt', { text: 'Date' }), h('dd', { text: P.formatDate(i.date) })),
+        h('div', null, h('dt', { text: 'Countdown' }), h('dd', { text: when })),
+        h('div', null, h('dt', { text: 'Guests' }), h('dd', { text: String(i.guests) })),
+        h('div', null, h('dt', { text: 'Budget' }), h('dd', { text: P.formatINR(i.budget) })),
+        h('div', null, h('dt', { text: 'Per guest' }), h('dd', { text: P.formatINR(plan.perHead) }))),
+      plan.warnings.length ? h('ul', { class: 'notice' }, plan.warnings.map(function (w) { return h('li', { text: w }); })) : null,
+      h('nav', { 'aria-label': 'Plan sections' }, h('div', { class: 'jump' },
+        h('a', { href: '#budget-h', text: 'Budget' }), h('a', { href: '#timeline-h', text: 'Timeline' }),
+        h('a', { href: '#vendors-h', text: 'Vendors' }), h('a', { href: '#ideas-h', text: 'Ideas' }))),
+      h('div', { class: 'pbar' },
+        h('label', { for: 'prog', id: 'progText' }),
+        h('progress', { id: 'prog', max: 1, value: 0 })));
+    wrap.append(summary);
+
+    // budget
+    var maxPct = Math.max.apply(null, plan.allocation.lines.map(function (l) { return l.percent; }));
+    var tbody = h('tbody');
+    plan.allocation.lines.forEach(function (l) {
+      tbody.append(h('tr', null,
+        h('th', { scope: 'row', text: l.label }, l.priority ? h('span', { class: 'tag gold', text: 'Priority' }) : null),
+        h('td', { class: 'num', text: l.percent + '%' }),
+        h('td', { class: 'num', text: P.formatINR(l.amount) }),
+        h('td', { class: 'bar-col', 'aria-hidden': 'true' }, h('div', { class: 'track' },
+          h('div', { class: 'fill' + (l.priority ? ' pri' : ''), style: 'width:' + Math.round((l.percent / maxPct) * 100) + '%' })))));
+    });
+    wrap.append(section('budget', 'Budget split', h('table', null,
+      h('caption', { text: 'Where each rupee goes, including a 5% reserve for surprises' }),
+      h('thead', null, h('tr', null, h('th', { scope: 'col', text: 'Category' }), h('th', { scope: 'col', class: 'num', text: 'Share' }),
+        h('th', { scope: 'col', class: 'num', text: 'Amount' }), h('th', { scope: 'col', class: 'bar-col', 'aria-hidden': 'true', text: '' }))),
+      tbody,
+      h('tfoot', null, h('tr', null, h('th', { scope: 'row', text: 'Total' }), h('td', { class: 'num', text: '100%' }),
+        h('td', { class: 'num', text: P.formatINR(plan.allocation.total) }), h('td', { class: 'bar-col', 'aria-hidden': 'true' }))))));
+
+    // timeline
+    var ol = h('ol', { class: 'steps' });
+    plan.timeline.items.forEach(function (t) {
+      var id = 'chk-' + t.id;
+      var rel = t.weeksBefore > 0 ? t.weeksBefore + (t.weeksBefore === 1 ? ' week before' : ' weeks before')
+        : t.weeksBefore === 0 ? 'Event day' : 'After the event';
+      ol.append(h('li', { class: 'step' },
+        h('input', { type: 'checkbox', id: id, checked: !!state.done[doneKey(plan, t.id)], onchange: tick(plan, t.id) }),
+        h('label', { for: id },
+          h('span', { class: 'what', text: t.task }),
+          h('span', { class: 'when' }, P.formatDate(t.due) + ' · ' + rel + ' · ' + t.group,
+            t.catchUp ? h('span', { class: 'tag', text: 'Catch-up' }) : null))));
+    });
+    wrap.append(section('timeline', 'Timeline', [
+      plan.timeline.compressed ? h('p', { class: 'hint', text: 'Dates are squeezed to fit the time you have. Items tagged Catch-up are due sooner than usual.' }) : null, ol]));
+
+    // vendors
+    var ul = h('ul', { class: 'vendors' });
+    plan.vendors.forEach(function (v) {
+      var id = 'chk-' + v.id;
+      ul.append(h('li', { class: 'vendor' },
+        h('h3', { text: v.vendor }),
+        h('p', { class: 'cap', text: 'Budget cap ' + P.formatINR(v.budgetCap) }),
+        h('p', { class: 'hint', text: 'Ask them:' }),
+        h('ul', null, v.questions.map(function (q) { return h('li', { text: q }); })),
+        h('label', { class: 'check', for: id },
+          h('input', { type: 'checkbox', id: id, checked: !!state.done[doneKey(plan, v.id)], onchange: tick(plan, v.id) }),
+          h('span', { text: 'Booked and confirmed in writing' }))));
+    });
+    wrap.append(section('vendors', 'Vendor checklist', ul));
+
+    // ideas
+    var ideas = plan.ideas;
+    function list(arr) { return h('ul', null, arr.map(function (x) { return h('li', { text: x }); })); }
+    wrap.append(section('ideas', 'Ideas for your guests', [
+      i.notes ? h('p', null, h('strong', { text: 'Your note: ' }), i.notes) : null,
+      h('div', { class: 'ideas' },
+        h('div', null, h('h3', { text: P.VIBES[ideas.vibe] + ' themes' }), list(ideas.themes)),
+        h('div', null, h('h3', { text: 'Touches guests remember' }), list(ideas.activities)),
+        h('div', null, h('h3', { text: 'Food' }), h('p', { text: ideas.food })),
+        h('div', null, h('h3', { text: 'Stretch your budget' }), list(ideas.savings)))]));
+
+    // Claude section (shown only when the page can ask Claude)
+    var ai = h('section', { class: 'card', id: 'ai', hidden: !sampleFn, 'aria-labelledby': 'ai-h' },
+      h('h2', { id: 'ai-h', text: 'More ideas from Claude' }),
+      h('p', { class: 'hint', text: 'Claude reads your plan and suggests six extra ideas. It uses your own Claude account and asks your permission first.' }),
+      h('div', { class: 'field' },
+        h('label', { class: 'lbl', for: 'aiAsk', text: 'What should the ideas focus on? (optional)' }),
+        h('input', { type: 'text', id: 'aiAsk', maxlength: '160', autocomplete: 'off' })),
+      h('div', { class: 'row' },
+        h('button', { type: 'button', class: 'btn', id: 'aiGo', onclick: askClaude, text: 'Suggest ideas' }),
+        h('button', { type: 'button', class: 'btn ghost', id: 'aiStop', hidden: true, onclick: function () { if (ctl) ctl.abort(); }, text: 'Stop' })),
+      h('div', { class: 'ai-out', id: 'aiOut', 'aria-live': 'polite' }));
+    wrap.append(ai);
+
+    // actions
+    wrap.append(h('div', { class: 'row' },
+      h('button', { type: 'button', class: 'btn ghost', id: 'copy', onclick: copyPlan, text: 'Copy plan as text' })));
+    wrap.append(h('div', { id: 'copyArea' }));
+
+    out.append(wrap);
+    updateProgress();
+  }
+
+  function build(announce) {
+    var input = readForm();
+    var plan = P.buildPlan(input, today);
+    if (!plan.ok) { showErrors(plan.errors); $('status').textContent = 'Please fix the highlighted fields.'; return false; }
+    showErrors(null);
+    var sig = [plan.input.type, plan.input.name, plan.input.date].join('|');
+    if (sig !== state.signature) { state.done = {}; state.signature = sig; }
+    state.values = plan.input;
+    render(plan);
+    save();
+    if (announce) $('status').textContent = 'Plan updated for ' + plan.input.name + '.';
+    return true;
+  }
+
+  // ---------- copy ----------
+  function copyPlan() {
+    if (!lastPlan) return;
+    var done = {};
+    Object.keys(state.done).forEach(function (k) { if (state.done[k] && k.indexOf(lastPlan.input.type + ':') === 0) done[k.split(':')[1]] = true; });
+    var text = P.planToText(lastPlan, done);
+    function fallback() {
+      var area = $('copyArea');
+      area.textContent = '';
+      var ta = h('textarea', { class: 'copybox', id: 'copyBox', readonly: true, 'aria-label': 'Plan text. Select all and copy.' });
+      ta.value = text;
+      area.append(ta);
+      ta.focus(); ta.select();
+      $('status').textContent = 'Select the text and copy it.';
+    }
+    try {
+      navigator.clipboard.writeText(text).then(function () { $('status').textContent = 'Plan copied.'; $('copy').textContent = 'Copied'; setTimeout(function () { var b = $('copy'); if (b) b.textContent = 'Copy plan as text'; }, 2000); }, fallback);
+    } catch (e) { fallback(); }
+  }
+
+  // ---------- Claude ----------
+  var sampleFn = null, ctl = null;
+  function copyFor(code) {
+    var map = {
+      not_granted: 'Claude was not allowed for this page, so no ideas were requested.',
+      sampling_disabled: 'Claude is not available on this account.',
+      rate_limited: 'Too many requests right now. Try again in a few minutes.',
+      session_expired: 'Sign in to Claude again, then try once more.',
+      invalid_json: 'Claude replied in a shape this page could not read. Try again.',
+      refused: 'Claude could not help with that request. Change the focus and try again.'
+    };
+    return map[code] || 'Something went wrong while asking Claude. Try again.';
+  }
+  function askClaude() {
+    if (!sampleFn || !lastPlan) return;
+    var i = lastPlan.input;
+    var focus = $('aiAsk').value.trim();
+    var prompt = 'You help families plan celebrations in India. Suggest exactly 6 fresh, practical ideas for this event that are NOT already in the plan.\n\n' +
+      'Event: ' + P.EVENT_TYPES[i.type].label + ' called "' + i.name + '"\nDate: ' + i.date + '\nGuests: ' + i.guests +
+      '\nBudget: ' + P.formatINR(i.budget) + ' (' + P.formatINR(lastPlan.perHead) + ' per guest)\nStyle: ' + P.VIBES[i.vibe] +
+      '\nExtra money goes to: ' + (i.priorities.join(', ') || 'no preference') +
+      '\nSpecial requests: ' + (i.notes || 'none') + '\nFocus: ' + (focus || 'anything useful') +
+      '\nIdeas already in the plan: ' + lastPlan.ideas.themes.join('; ') +
+      '\n\nEach idea must fit the budget per guest and be doable by a small family team. Reply with only a JSON array of 6 objects like {"title":"short title","detail":"one or two sentences with a concrete tip"}.';
+    var go = $('aiGo'), stop = $('aiStop'), out = $('aiOut');
+    ctl = new AbortController();
+    go.disabled = true; stop.hidden = false;
+    out.textContent = 'Thinking...';
+    sampleFn.json(prompt, { modelTier: 'quick', signal: ctl.signal, cache: false }).then(function (items) {
+      out.textContent = '';
+      var list = Array.isArray(items) ? items.slice(0, 6) : [];
+      if (!list.length) { out.textContent = 'No ideas came back. Try again.'; return; }
+      list.forEach(function (it) {
+        out.append(h('div', { class: 'ai-item' }, h('h3', { text: String(it && it.title || 'Idea') }), h('p', { text: String(it && it.detail || '') })));
+      });
+    }).catch(function (e) {
+      out.textContent = '';
+      if (e && e.code === 'cancelled') { out.textContent = 'Stopped.'; return; }
+      out.textContent = copyFor(e && e.code);
+    }).then(function () { go.disabled = false; stop.hidden = true; ctl = null; });
+  }
+  function initClaude() {
+    try {
+      if (!window.claude || typeof window.claude.use !== 'function') return;
+      window.claude.use('sample').then(function (fn) {
+        if (!fn) return;
+        sampleFn = fn;
+        var s = $('ai'); if (s) s.hidden = false;
+      }, function () {});
+    } catch (e) { /* not running inside Claude: the page works without it */ }
+  }
+
+  // ---------- events ----------
+  $('form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    state.example = false;
+    if (build(true)) {
+      var p = $('plan');
+      p.focus({ preventScroll: true });
+      var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      p.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    }
+  });
+  $('form').addEventListener('input', function (e) {
+    if (e.target && e.target.id && e.isTrusted) dirty[e.target.id] = true;
+  });
+  $('form').addEventListener('change', function (e) {
+    var t = e.target;
+    if (t.name === 'type') {
+      var ex = exampleValues(t.value);
+      ['name', 'date', 'guests', 'budget'].forEach(function (f) { if (!dirty[f]) $(f).value = ex[f]; });
+      drawPriorities(t.value, dirty.priorities ? [] : ex.priorities);
+    } else if (t.closest && t.closest('#priorities')) {
+      dirty.priorities = true;
+      limitPriorities();
+    }
+  });
+  $('reset').addEventListener('click', function () {
+    dirty = {}; state = { values: null, done: {}, signature: '', example: true };
+    showErrors(null);
+    var v = exampleValues('wedding');
+    fillForm(v);
+    build(true);
+    $('status').textContent = 'Reset to the example wedding.';
+  });
+
+  // ---------- start ----------
+  var saved = load();
+  var start = exampleValues('wedding');
+  if (saved && saved.values && P.validateInput(saved.values, today).ok) {
+    state = { values: saved.values, done: saved.done || {}, signature: saved.signature || '', example: !!saved.example };
+    start = saved.values;
+  }
+  fillForm(start);
+  build(false);
+  initClaude();
+})();
+</script>
