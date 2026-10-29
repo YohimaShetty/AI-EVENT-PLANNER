@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const P = require('../src/planner.js');
+const P = require('../js/planner.js');
 
 const TODAY = '2026-10-27';
 const base = { type: 'wedding', name: 'Asha and Kiran', date: '2027-03-14', guests: 250, budget: 1500000, vibe: 'traditional', priorities: ['catering'], notes: '' };
@@ -126,4 +126,78 @@ test('planToText includes ticked items', () => {
   const txt = P.planToText(plan, { t0: true });
   assert.match(txt, /\[x\]/);
   assert.match(txt, /BUDGET/);
+});
+
+test('parseDate rejects malformed and impossible dates', () => {
+  for (const bad of ['', null, undefined, '2027-13-01', '2027-02-30', '27-03-2027', 'abc']) {
+    assert.equal(P.parseDate(bad), null, String(bad));
+  }
+  assert.ok(P.parseDate('2028-02-29'), 'leap day is valid');
+  assert.equal(P.parseDate('2027-02-29'), null, 'non-leap year');
+});
+
+test('toISO and parseDate round-trip, and addDays crosses month and year ends', () => {
+  assert.equal(P.toISO(P.parseDate('2027-03-14')), '2027-03-14');
+  assert.equal(P.toISO(P.addDays(P.parseDate('2026-12-30'), 5)), '2027-01-04');
+  assert.equal(P.toISO(P.addDays(P.parseDate('2027-03-01'), -1)), '2027-02-28');
+  assert.equal(P.daysBetween(P.parseDate('2026-10-27'), P.parseDate('2027-03-14')), 138);
+});
+
+test('tierFor switches at the documented thresholds', () => {
+  const min = P.EVENT_TYPES.birthday.minPerGuest;
+  assert.equal(P.tierFor('birthday', min - 1), 'low');
+  assert.equal(P.tierFor('birthday', min), 'mid');
+  assert.equal(P.tierFor('birthday', min * 2.2 - 1), 'mid');
+  assert.equal(P.tierFor('birthday', min * 2.2), 'high');
+});
+
+test('validateInput enforces the exact guest and budget limits', () => {
+  const ok = (patch) => P.validateInput({ ...base, ...patch }, TODAY);
+  assert.equal(ok({ guests: P.LIMITS.guests.min }).ok, true);
+  assert.equal(ok({ guests: P.LIMITS.guests.max }).ok, true);
+  assert.ok(ok({ guests: P.LIMITS.guests.max + 1 }).errors.guests);
+  assert.equal(ok({ budget: P.LIMITS.budget.min }).ok, true);
+  assert.ok(ok({ budget: P.LIMITS.budget.min - 1 }).errors.budget);
+  assert.ok(ok({ budget: P.LIMITS.budget.max + 1 }).errors.budget);
+  assert.ok(ok({ guests: NaN }).errors.guests);
+  assert.ok(ok({ name: 'x'.repeat(P.LIMITS.nameLength + 1) }).errors.name);
+});
+
+test('a close date adds a warning that mentions the days left', () => {
+  const r = P.validateInput({ ...base, date: '2026-11-03' }, TODAY);
+  assert.ok(r.warnings.some((w) => /7 days remain/.test(w)));
+  const one = P.validateInput({ ...base, date: '2026-10-28' }, TODAY);
+  assert.ok(one.warnings.some((w) => /1 day remain/.test(w)));
+});
+
+test('every event type builds a complete, consistent plan', () => {
+  for (const type of Object.keys(P.EVENT_TYPES)) {
+    const plan = P.buildPlan({ ...base, type, guests: 60, budget: 400000 }, TODAY);
+    assert.equal(plan.ok, true, type);
+    assert.equal(plan.allocation.total, 400000, type);
+    assert.ok(plan.timeline.items.length >= 10, type);
+    assert.ok(plan.vendors.length >= 7, type);
+    const categoryKeys = new Set(P.EVENT_TYPES[type].categories.map((c) => c.key));
+    assert.ok(plan.vendors.every((v) => categoryKeys.has(v.category)), type + ' vendor categories exist');
+    const ids = [...plan.timeline.items, ...plan.vendors].map((x) => x.id);
+    assert.equal(new Set(ids).size, ids.length, type + ' ids are unique');
+  }
+});
+
+test('notes are trimmed and capped, and unknown vibes fall back', () => {
+  const plan = P.buildPlan({ ...base, notes: '  ' + 'a'.repeat(500), vibe: 'nope' }, TODAY);
+  assert.equal(plan.input.notes.length, P.LIMITS.notesLength);
+  assert.equal(plan.ideas.vibe, 'modern');
+});
+
+test('user-supplied text is carried as data and never altered into markup', () => {
+  const nasty = '<img src=x onerror=alert(1)>';
+  const plan = P.buildPlan({ ...base, name: nasty, notes: nasty }, TODAY);
+  assert.equal(plan.input.name, nasty);
+  assert.match(P.planToText(plan, {}), /<img src=x onerror=alert\(1\)>/);
+});
+
+test('formatDate returns an empty string for invalid dates', () => {
+  assert.equal(P.formatDate('nope'), '');
+  assert.match(P.formatDate('2027-03-14'), /14/);
 });

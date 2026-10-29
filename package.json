@@ -1,10 +1,13 @@
 {
   "name": "celebration-planner",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Planning assistant for weddings, birthdays and community events: budget split, timeline, vendor checklist and ideas.",
   "scripts": {
-    "build": "node build.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0"
   },
   "license": "MIT"
 }
